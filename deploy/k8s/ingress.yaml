@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: notification-service-ingress
-  namespace: default
+  namespace: production
   labels:
     app: notification-service
     part-of: apsferreira

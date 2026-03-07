@@ -1,21 +1,21 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: notification-service-staging
+  name: notification-service
   namespace: argocd
   labels:
     app: notification-service
-    environment: staging
+    environment: production
     part-of: apsferreira
 spec:
   project: default
   source:
     repoURL: git@github.com:apsferreira/notification-service.git
-    targetRevision: develop
+    targetRevision: main
     path: deploy/k8s
   destination:
     server: https://kubernetes.default.svc
-    namespace: default
+    namespace: production
   syncPolicy:
     automated:
       prune: true
@@ -32,35 +32,3 @@ spec:
         factor: 2
         maxDuration: 3m
   revisionHistoryLimit: 10
-
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: notification-service-production
-  namespace: argocd
-  labels:
-    app: notification-service
-    environment: production
-    part-of: apsferreira
-spec:
-  project: default
-  source:
-    repoURL: git@github.com:apsferreira/notification-service.git
-    targetRevision: main
-    path: deploy/k8s
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: production
-  syncPolicy:
-    syncOptions:
-    - CreateNamespace=true
-    - PrunePropagationPolicy=foreground
-    - PruneLast=true
-    retry:
-      limit: 2
-      backoff:
-        duration: 10s
-        factor: 2
-        maxDuration: 5m
-  revisionHistoryLimit: 20
