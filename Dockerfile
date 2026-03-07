@@ -1,22 +1,40 @@
-# Stage 1: Build the application
-FROM golang:1.21-alpine AS builder
+# Build stage
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
+# Install dependencies for building
+RUN apk add --no-cache git ca-certificates tzdata
+
+# Copy go mod files
 COPY go.mod go.sum ./
 RUN go mod download
 
+# Copy source code
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -v -o notification-service ./cmd/server
+# Build the binary
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags='-w -s -extldflags "-static"' \
+    -o notification-service ./cmd/server
 
-# Stage 2: Create the final image
-FROM alpine:latest
+# Final stage
+FROM scratch
 
-RUN apk --no-cache add ca-certificates
+# Copy CA certificates from builder
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-WORKDIR /root/
+# Copy timezone data
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
-COPY --from=builder /app/notification-service .
+# Copy our binary
+COPY --from=builder /app/notification-service /notification-service
 
-CMD ["./notification-service"]
+# Expose port
+EXPOSE 3030
+
+# Set timezone
+ENV TZ=America/Sao_Paulo
+
+# Run the binary
+ENTRYPOINT ["/notification-service"]

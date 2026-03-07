@@ -1,0 +1,76 @@
+# =============================================================================
+# Notification Service — Local Development
+# PostgreSQL 16 + API
+# =============================================================================
+services:
+  # API
+  notification-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: notification-service-api:dev
+    container_name: notification-api-dev
+    ports:
+      - "3030:3030"
+    environment:
+      - PORT=3030
+      - DATABASE_URL=postgresql://postgres:postgres@notification-postgres:5432/notification_service?sslmode=disable
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - FROM_EMAIL=noreply@institutoitinerante.com.br
+      - OTEL_SERVICE_NAME=notification-service
+    depends_on:
+      notification-postgres:
+        condition: service_healthy
+    networks:
+      - notification-dev
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3030/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # PostgreSQL 16
+  notification-postgres:
+    image: postgres:16-alpine
+    container_name: notification-postgres-dev
+    ports:
+      - "5435:5432"
+    environment:
+      POSTGRES_DB: notification_service
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - notification_postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d/migrations:ro
+    networks:
+      - notification-dev
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Adminer for DB administration (optional)
+  adminer:
+    image: adminer:4
+    container_name: notification-adminer-dev
+    ports:
+      - "8083:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: notification-postgres
+    networks:
+      - notification-dev
+    restart: unless-stopped
+
+volumes:
+  notification_postgres_data:
+    driver: local
+
+networks:
+  notification-dev:
+    driver: bridge
+    name: notification-dev-network

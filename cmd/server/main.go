@@ -2,142 +2,146 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
+	"os"
+	"os/signal"
+	"time"
 
-	"github.com/go-chi/chi/v4"
-	"github.com/go-chi/chi/v4/middleware"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/institutoitinerante/notification-service/internal/handler"
+	"github.com/institutoitinerante/notification-service/internal/repository"
+	"github.com/institutoitinerante/notification-service/internal/service"
+	"github.com/institutoitinerante/notification-service/internal/telemetry"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/openclaw/notification-service/internal/database"
-	"github.com/openclaw/notification-service/internal/models"
-	"github.com/openclaw/notification-service/pkg/telemetry"
 )
 
-type application struct {
-	db *pgxpool.Pool
-}
-
 func main() {
-	tp, err := telemetry.InitTracer()
-	if err != nil {
-		log.Fatal("Could not initialize tracer:", err)
+	// 1. Initialize telemetry
+	shutdownTelemetry := telemetry.Init("notification-service")
+	defer shutdownTelemetry()
+
+	// 2. Load environment variables
+	port := getEnv("PORT", "3030")
+	databaseURL := getEnv("DATABASE_URL", "")
+	if databaseURL == "" {
+		log.Fatal("DATABASE_URL environment variable is required")
 	}
-	defer func() {
-		if err := tp.Shutdown(context.Background()); err != nil {
-			log.Printf("Error shutting down tracer provider: %v", err)
+	resendAPIKey := getEnv("RESEND_API_KEY", "")
+	if resendAPIKey == "" {
+		log.Println("⚠️  RESEND_API_KEY not set — email sending will fail")
+	}
+	fromEmail := getEnv("FROM_EMAIL", "noreply@institutoitinerante.com.br")
+
+	// 3. Connect to PostgreSQL
+	dbPool, err := pgxpool.New(context.Background(), databaseURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer dbPool.Close()
+
+	// Test database connection
+	if err := dbPool.Ping(context.Background()); err != nil {
+		log.Fatalf("Failed to ping database: %v", err)
+	}
+	log.Println("✅ PostgreSQL connected")
+
+	// 4. Initialize repositories
+	notificationRepo := repository.NewNotificationRepository(dbPool)
+	templateRepo := repository.NewTemplateRepository(dbPool)
+
+	// 5. Initialize services
+	notificationSvc := service.NewNotificationService(notificationRepo, templateRepo, resendAPIKey, fromEmail)
+	templateSvc := service.NewTemplateService(templateRepo)
+
+	// 6. Initialize handlers
+	notificationHandler := handler.NewNotificationHandler(notificationSvc)
+	templateHandler := handler.NewTemplateHandler(templateSvc)
+
+	// 7. Setup router
+	r := chi.NewRouter()
+
+	// Global middleware
+	r.Use(middleware.RequestID)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+	r.Use(middleware.Timeout(60 * time.Second))
+
+	// CORS middleware
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token")
+
+			if r.Method == "OPTIONS" {
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	})
+
+	// Register telemetry endpoints
+	telemetry.RegisterMetrics(r)
+
+	// Health check endpoint
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status": "ok", "service": "notification-service"}`))
+	})
+
+	// API routes
+	r.Route("/notifications", func(r chi.Router) {
+		r.Post("/send", notificationHandler.SendNotification)
+		r.Get("/", notificationHandler.ListNotifications)
+		r.Get("/{id}", notificationHandler.GetNotification)
+	})
+
+	r.Route("/templates", func(r chi.Router) {
+		r.Post("/", templateHandler.CreateTemplate)
+		r.Get("/", templateHandler.ListTemplates)
+		r.Get("/{id}", templateHandler.GetTemplate)
+		r.Put("/{id}", templateHandler.UpdateTemplate)
+	})
+
+	// 8. Start server
+	addr := fmt.Sprintf(":%s", port)
+	server := &http.Server{
+		Addr:    addr,
+		Handler: r,
+	}
+
+	// Graceful shutdown
+	go func() {
+		log.Printf("🚀 Notification Service starting on %s", addr)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
 
-	dbpool, err := database.NewDBConnection()
-	if err != nil {
-		log.Fatal("Could not connect to the database:", err)
+	// Wait for interrupt signal
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	<-c
+
+	log.Println("Shutting down server...")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Printf("Server shutdown error: %v", err)
+	} else {
+		log.Println("Server shut down gracefully")
 	}
-	defer dbpool.Close()
-
-	app := &application{
-		db: dbpool,
-	}
-
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-
-	r.Get("/health", app.healthCheckHandler)
-	r.Post("/notifications", app.createNotificationHandler)
-	r.Get("/notifications/{user_id}", app.getNotificationsByUserHandler)
-	r.Patch("/notifications/{id}/read", app.markNotificationAsReadHandler)
-
-	fmt.Println("Server listening on port 8080")
-	http.ListenAndServe(":8080", r)
 }
 
-func (app *application) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	if err := app.db.Ping(context.Background()); err != nil {
-		http.Error(w, "Database connection failed", http.StatusInternalServerError)
-		return
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
 	}
-	w.Write([]byte("OK"))
-}
-
-func (app *application) createNotificationHandler(w http.ResponseWriter, r *http.Request) {
-	var notification models.Notification
-	err := json.NewDecoder(r.Body).Decode(&notification)
-	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	query := `INSERT INTO notifications (user_id, type, title, message, created_at)
-			  VALUES ($1, $2, $3, $4, NOW())
-			  RETURNING id, created_at`
-
-	err = app.db.QueryRow(context.Background(), query, notification.UserID, notification.Type, notification.Title, notification.Message).Scan(&notification.ID, &notification.CreatedAt)
-	if err != nil {
-		http.Error(w, "Failed to create notification", http.StatusInternalServerError)
-		log.Println("Failed to create notification:", err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(notification)
-}
-
-func (app *application) getNotificationsByUserHandler(w http.ResponseWriter, r *http.Request) {
-	userID, err := strconv.ParseInt(chi.URLParam(r, "user_id"), 10, 64)
-	if err != nil {
-		http.Error(w, "Invalid user ID", http.StatusBadRequest)
-		return
-	}
-
-	query := `SELECT id, user_id, type, title, message, read_at, sent_at, created_at
-			  FROM notifications
-			  WHERE user_id = $1
-			  ORDER BY created_at DESC`
-
-	rows, err := app.db.Query(context.Background(), query, userID)
-	if err != nil {
-		http.Error(w, "Failed to retrieve notifications", http.StatusInternalServerError)
-		log.Println("Failed to retrieve notifications:", err)
-		return
-	}
-	defer rows.Close()
-
-	var notifications []models.Notification
-	for rows.Next() {
-		var notification models.Notification
-		err := rows.Scan(&notification.ID, &notification.UserID, &notification.Type, &notification.Title, &notification.Message, &notification.ReadAt, &notification.SentAt, &notification.CreatedAt)
-		if err != nil {
-			http.Error(w, "Failed to scan notification", http.StatusInternalServerError)
-			log.Println("Failed to scan notification:", err)
-			return
-		}
-		notifications = append(notifications, notification)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(notifications)
-}
-
-func (app *application) markNotificationAsReadHandler(w http.ResponseWriter, r *http.Request) {
-	notificationID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
-		http.Error(w, "Invalid notification ID", http.StatusBadRequest)
-		return
-	}
-
-	query := `UPDATE notifications
-			  SET read_at = NOW()
-			  WHERE id = $1`
-
-	_, err = app.db.Exec(context.Background(), query, notificationID)
-	if err != nil {
-		http.Error(w, "Failed to mark notification as read", http.StatusInternalServerError)
-		log.Println("Failed to mark notification as read:", err)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	return defaultValue
 }
