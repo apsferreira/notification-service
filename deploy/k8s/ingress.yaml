@@ -1,0 +1,19 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: notification-service
+  namespace: production
+  labels:
+    app: notification-service
+    part-of: apsferreira
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`notification-api.institutoitinerante.com.br`)
+      kind: Rule
+      services:
+        - name: notification-service
+          port: 80
+  tls:
+    certResolver: letsencrypt

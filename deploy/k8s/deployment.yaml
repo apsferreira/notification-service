@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: production
+  labels:
+    app: notification-service
+    component: backend
+    part-of: apsferreira
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+        component: backend
+        part-of: apsferreira
+    spec:
+      containers:
+      - name: notification-service
+        image: ghcr.io/apsferreira/notification-service:latest
+        ports:
+        - containerPort: 3030
+          name: http
+          protocol: TCP
+        env:
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: notification-service-config
+              key: PORT
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: notification-service-secrets
+              key: database-url
+        - name: RESEND_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: notification-service-secrets
+              key: resend-api-key
+        - name: FROM_EMAIL
+          valueFrom:
+            configMapKeyRef:
+              name: notification-service-config
+              key: FROM_EMAIL
+        - name: OTEL_SERVICE_NAME
+          value: "notification-service"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: notification-service-config
+              key: OTEL_EXPORTER_OTLP_ENDPOINT
+              optional: true
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65534
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      restartPolicy: Always
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault

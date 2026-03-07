@@ -1,44 +1,34 @@
 # Binaries
 *.exe
+*.exe~
 *.dll
 *.so
 *.dylib
-main
+notification-service
 
-# Go
+# Test binary
 *.test
-*.out
-go.work
 
-# Environment
-.env
-.env.*
-!.env.example
+# Output of go coverage
+*.out
+
+# Go workspace
+go.work
+go.work.sum
 
 # IDE
-.idea
-.vscode
+.idea/
+.vscode/
 *.swp
 *.swo
-*~
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Dependencies
-node_modules/
-vendor/
-
-# Logs
-*.log
-logs/
+# Environment
+.env
+.env.local
 
 # Temporary
 tmp/
-temp/
-
-# Data
-data/
-volumes/
-
