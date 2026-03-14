@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
       - name: notification-service
-        image: ghcr.io/apsferreira/notification-service:sha-609913f
+        image: ghcr.io/apsferreira/notification-service:sha-5f9aa27
         ports:
         - containerPort: 3030
           name: http
