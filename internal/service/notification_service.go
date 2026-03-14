@@ -19,16 +19,16 @@ import (
 const maxRetries = 3
 
 type NotificationService struct {
-	notificationRepo *repository.NotificationRepository
-	templateRepo     *repository.TemplateRepository
+	notificationRepo repository.NotificationRepositoryInterface
+	templateRepo     repository.TemplateRepositoryInterface
 	resendAPIKey     string
 	fromEmail        string
 	httpClient       *http.Client
 }
 
 func NewNotificationService(
-	notificationRepo *repository.NotificationRepository,
-	templateRepo *repository.TemplateRepository,
+	notificationRepo repository.NotificationRepositoryInterface,
+	templateRepo repository.TemplateRepositoryInterface,
 	resendAPIKey string,
 	fromEmail string,
 ) *NotificationService {

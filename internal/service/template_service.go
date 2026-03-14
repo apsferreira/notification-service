@@ -9,10 +9,10 @@ import (
 )
 
 type TemplateService struct {
-	templateRepo *repository.TemplateRepository
+	templateRepo repository.TemplateRepositoryInterface
 }
 
-func NewTemplateService(templateRepo *repository.TemplateRepository) *TemplateService {
+func NewTemplateService(templateRepo repository.TemplateRepositoryInterface) *TemplateService {
 	return &TemplateService{templateRepo: templateRepo}
 }
 
