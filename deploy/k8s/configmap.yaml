@@ -29,3 +29,4 @@ type: Opaque
 stringData:
   database-url: "postgres://notification_user:Quixabeira%401@192.168.30.121:5432/notification_db?sslmode=disable"
   resend-api-key: "re_RRx79nAs_MQZkqWPbj7jB7tGJ5zFHCMQN"
+  rabbitmq-url: "amqp://guest:guest@192.168.30.121:5672/"

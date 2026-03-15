@@ -1,19 +1,31 @@
+# =============================================================================
+# IngressRoute — Notification Service
+# Traefik v3 + Cloudflare Tunnel
+#
+# Arquitetura de exposição:
+#   notification.institutoitinerante.com.br → Frontend Dashboard (React)
+#   Backend API → interno via ClusterIP (notification-service.production.svc.cluster.local)
+#                 NÃO exposto publicamente — chamado apenas por serviços internos via RabbitMQ/HTTP
+#
+# Segurança: notification.institutoitinerante.com.br protegido por Cloudflare Access
+# =============================================================================
+
+# Frontend Dashboard: notification.institutoitinerante.com.br
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: notification-service
+  name: notification-service-frontend
   namespace: production
   labels:
-    app: notification-service
+    app: notification-service-frontend
     part-of: apsferreira
 spec:
   entryPoints:
+    - web
     - websecure
   routes:
-    - match: Host(`notification-api.institutoitinerante.com.br`)
+    - match: Host(`notification.institutoitinerante.com.br`)
       kind: Rule
       services:
-        - name: notification-service
+        - name: notification-service-frontend
           port: 80
-  tls:
-    certResolver: letsencrypt

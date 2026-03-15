@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/institutoitinerante/notification-service/internal/consumer"
 	"github.com/institutoitinerante/notification-service/internal/handler"
 	"github.com/institutoitinerante/notification-service/internal/repository"
 	"github.com/institutoitinerante/notification-service/internal/service"
@@ -34,6 +36,12 @@ func main() {
 		log.Println("⚠️  RESEND_API_KEY not set — email sending will fail")
 	}
 	fromEmail := getEnv("FROM_EMAIL", "noreply@institutoitinerante.com.br")
+	rabbitmqURL := getEnv("RABBITMQ_URL", "")
+
+	// OTP configuration
+	telegramBotToken := getEnv("TELEGRAM_BOT_TOKEN", "")
+	telegramChatID := getEnv("TELEGRAM_CHAT_ID", "")
+	env := getEnv("ENV", "production")
 
 	// 3. Connect to PostgreSQL
 	dbPool, err := pgxpool.New(context.Background(), databaseURL)
@@ -51,14 +59,34 @@ func main() {
 	// 4. Initialize repositories
 	notificationRepo := repository.NewNotificationRepository(dbPool)
 	templateRepo := repository.NewTemplateRepository(dbPool)
+	otpRepo := repository.NewOTPRepository(dbPool)
 
 	// 5. Initialize services
 	notificationSvc := service.NewNotificationService(notificationRepo, templateRepo, resendAPIKey, fromEmail)
 	templateSvc := service.NewTemplateService(templateRepo)
+	
+	// Initialize OTP-related services
+	emailSvc := service.NewEmailService(resendAPIKey, fromEmail, env)
+	telegramNotifier := service.NewTelegramNotifier(telegramBotToken, telegramChatID)
+	otpSvc := service.NewOTPService(otpRepo, emailSvc, telegramNotifier, 10, 3, 5, 30) // 10min expiry, 3 attempts, 5 requests per 30min
 
 	// 6. Initialize handlers
 	notificationHandler := handler.NewNotificationHandler(notificationSvc)
 	templateHandler := handler.NewTemplateHandler(templateSvc)
+	otpHandler := handler.NewOTPHandler(otpSvc)
+
+	// 6b. Start RabbitMQ consumers tied to the server lifecycle context.
+	serverCtx, serverStop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer serverStop()
+
+	if rabbitmqURL != "" {
+		handlers := consumer.NewNotificationHandlers(otpSvc, notificationSvc)
+		c := consumer.New(rabbitmqURL, handlers, handlers, handlers, handlers)
+		go c.Start(serverCtx)
+		log.Println("✅ RabbitMQ consumer started")
+	} else {
+		log.Println("⚠️  RABBITMQ_URL not set — event consumers disabled")
+	}
 
 	// 7. Setup router
 	r := chi.NewRouter()
@@ -108,6 +136,11 @@ func main() {
 		r.Put("/{id}", templateHandler.UpdateTemplate)
 	})
 
+	r.Route("/otp", func(r chi.Router) {
+		r.Post("/send", otpHandler.SendOTP)
+		r.Post("/verify", otpHandler.VerifyOTP)
+	})
+
 	// 8. Start server
 	addr := fmt.Sprintf(":%s", port)
 	server := &http.Server{
@@ -123,10 +156,9 @@ func main() {
 		}
 	}()
 
-	// Wait for interrupt signal
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	<-c
+	// Wait for interrupt signal (already handled by serverCtx above)
+	<-serverCtx.Done()
+	serverStop()
 
 	log.Println("Shutting down server...")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

@@ -8,9 +8,13 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.4
 	github.com/prometheus/client_golang v1.22.0
+	github.com/rabbitmq/amqp091-go v1.10.0
+	github.com/resend/resend-go/v2 v2.14.0
+	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/otel v1.35.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.35.0
 	go.opentelemetry.io/otel/sdk v1.35.0
+	golang.org/x/crypto v0.33.0
 )
 
 require (
