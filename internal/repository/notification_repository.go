@@ -162,6 +162,11 @@ func (r *NotificationRepository) GetPendingRetries(ctx context.Context) ([]model
 	return notifications, nil
 }
 
+func (r *NotificationRepository) IncrementAttempts(ctx context.Context, id uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `UPDATE notifications SET attempts = attempts + 1 WHERE id = $1`, id)
+	return err
+}
+
 func (r *NotificationRepository) scanNotification(row pgx.Row) (*model.Notification, error) {
 	var n model.Notification
 	var variablesJSON []byte

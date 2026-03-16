@@ -2,11 +2,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { 
   Mail, 
   MessageSquare, 
-  TrendingUp, 
-  AlertCircle,
   CheckCircle,
-  Clock,
-  XCircle
+  Clock
 } from 'lucide-react';
 
 export function Dashboard() {

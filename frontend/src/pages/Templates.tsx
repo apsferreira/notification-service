@@ -11,7 +11,7 @@ import {
   Eye,
   Copy
 } from 'lucide-react';
-import { getStatusColor, formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 
 export function Templates() {
   const [selectedType, setSelectedType] = useState<'all' | 'email' | 'sms'>('all');
