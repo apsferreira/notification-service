@@ -163,4 +163,3 @@ func (r *TemplateRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	_, err := r.db.Exec(ctx, `DELETE FROM templates WHERE id = $1`, id)
 	return err
 }
-}
