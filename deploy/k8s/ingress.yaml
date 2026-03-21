@@ -3,27 +3,28 @@
 # Traefik v3 + Cloudflare Tunnel
 #
 # Arquitetura de exposição:
-#   notification.institutoitinerante.com.br → Frontend Dashboard (React)
-#   Backend API → interno via ClusterIP (notification-service.production.svc.cluster.local)
-#                 NÃO exposto publicamente — chamado apenas por serviços internos via RabbitMQ/HTTP
-#
-# Segurança: notification.institutoitinerante.com.br protegido por Cloudflare Access
+#   notification.institutoitinerante.com.br       → Frontend Dashboard (React)
+#   notification.institutoitinerante.com.br/api   → Backend API (Go/Fiber)
 # =============================================================================
 
-# Frontend Dashboard: notification.institutoitinerante.com.br
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: notification-service-frontend
+  name: notification-service
   namespace: production
   labels:
-    app: notification-service-frontend
+    app: notification-service
     part-of: apsferreira
 spec:
   entryPoints:
     - web
     - websecure
   routes:
+    - match: Host(`notification.institutoitinerante.com.br`) && PathPrefix(`/api`)
+      kind: Rule
+      services:
+        - name: notification-service
+          port: 80
     - match: Host(`notification.institutoitinerante.com.br`)
       kind: Rule
       services:
