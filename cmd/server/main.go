@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/institutoitinerante/notification-service/internal/consumer"
 	"github.com/institutoitinerante/notification-service/internal/handler"
+	custommw "github.com/institutoitinerante/notification-service/internal/middleware"
 	"github.com/institutoitinerante/notification-service/internal/repository"
 	"github.com/institutoitinerante/notification-service/internal/service"
 	"github.com/institutoitinerante/notification-service/internal/telemetry"
@@ -93,7 +94,7 @@ func main() {
 
 	// Global middleware
 	r.Use(middleware.RequestID)
-	r.Use(middleware.Logger)
+	r.Use(custommw.NewZerologMiddleware())
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
