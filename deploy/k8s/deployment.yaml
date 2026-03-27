@@ -18,6 +18,10 @@ spec:
         app: notification-service
         component: backend
         part-of: apsferreira
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "3030"
     spec:
       containers:
       - name: notification-service
