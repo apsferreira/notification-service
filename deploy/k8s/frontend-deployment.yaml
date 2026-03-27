@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: ghcr.io/apsferreira/notification-service-frontend:sha-5a6a26c
+        image: ghcr.io/apsferreira/notification-service-frontend:sha-f1aa84c
         ports:
         - containerPort: 80
         env:
