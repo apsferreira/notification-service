@@ -44,6 +44,11 @@ func main() {
 	telegramChatID := getEnv("TELEGRAM_CHAT_ID", "")
 	env := getEnv("ENV", "production")
 
+	// WhatsApp via Evolution API (opcional — no-op se EVOLUTION_API_URL ou EVOLUTION_API_KEY vazios)
+	evolutionBaseURL  := getEnv("EVOLUTION_API_URL", "")
+	evolutionAPIKey   := getEnv("EVOLUTION_API_KEY", "")
+	evolutionInstance := getEnv("EVOLUTION_INSTANCE_ID", "default")
+
 	// 3. Connect to PostgreSQL
 	dbPool, err := pgxpool.New(context.Background(), databaseURL)
 	if err != nil {
@@ -69,7 +74,13 @@ func main() {
 	// Initialize OTP-related services
 	emailSvc := service.NewEmailService(resendAPIKey, fromEmail, env)
 	telegramNotifier := service.NewTelegramNotifier(telegramBotToken, telegramChatID)
-	otpSvc := service.NewOTPService(otpRepo, emailSvc, telegramNotifier, 10, 3, 5, 30) // 10min expiry, 3 attempts, 5 requests per 30min
+	whatsappNotifier := service.NewEvolutionWhatsAppNotifier(evolutionBaseURL, evolutionAPIKey, evolutionInstance)
+	if whatsappNotifier.IsConfigured() {
+		log.Println("WhatsApp (Evolution API) configurado")
+	} else {
+		log.Println("WhatsApp nao configurado — canal whatsapp desabilitado (no-op)")
+	}
+	otpSvc := service.NewOTPService(otpRepo, emailSvc, telegramNotifier, whatsappNotifier, 10, 3, 5, 30) // 10min expiry, 3 attempts, 5 requests per 30min
 
 	// 6. Initialize handlers
 	notificationHandler := handler.NewNotificationHandler(notificationSvc)

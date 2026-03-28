@@ -4,8 +4,9 @@ package consumer
 // Exchange: auth.events | Routing key: otp.requested
 type OTPRequestedEvent struct {
 	Email       string `json:"email"`
-	ServiceName string `json:"service_name"` // human-readable, e.g. "Instituto Itinerante"
-	Channel     string `json:"channel"`      // "email" | "telegram"
+	Phone       string `json:"phone,omitempty"` // E.164, obrigatório quando channel == "whatsapp"
+	ServiceName string `json:"service_name"`    // human-readable, e.g. "Instituto Itinerante"
+	Channel     string `json:"channel"`         // "email" | "telegram" | "whatsapp"
 }
 
 // CustomerCreatedEvent is published by customer-service when a new customer registers.

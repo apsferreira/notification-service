@@ -14,25 +14,28 @@ import (
 )
 
 type OTPService struct {
-	otpRepo          *repository.OTPRepository
-	emailService     *EmailService
-	telegramNotifier *TelegramNotifier
-	expiryMinutes    int
-	maxAttempts      int
-	rateLimit        int
-	rateWindow       time.Duration
+	otpRepo            *repository.OTPRepository
+	emailService       *EmailService
+	telegramNotifier   *TelegramNotifier
+	whatsappNotifier   WhatsAppNotifier
+	expiryMinutes      int
+	maxAttempts        int
+	rateLimit          int
+	rateWindow         time.Duration
 }
 
 func NewOTPService(
 	otpRepo *repository.OTPRepository,
 	emailService *EmailService,
 	telegramNotifier *TelegramNotifier,
+	whatsappNotifier WhatsAppNotifier,
 	expiryMinutes, maxAttempts, rateLimit, rateWindowMinutes int,
 ) *OTPService {
 	return &OTPService{
 		otpRepo:          otpRepo,
 		emailService:     emailService,
 		telegramNotifier: telegramNotifier,
+		whatsappNotifier: whatsappNotifier,
 		expiryMinutes:    expiryMinutes,
 		maxAttempts:      maxAttempts,
 		rateLimit:        rateLimit,
@@ -41,7 +44,19 @@ func NewOTPService(
 }
 
 // GenerateAndSend creates a 6-digit OTP, stores it in DB, and sends via email/telegram.
+// Mantido para compatibilidade retroativa — delega para GenerateAndSendChannel com canal "email".
 func (s *OTPService) GenerateAndSend(ctx context.Context, email string) (time.Time, error) {
+	return s.GenerateAndSendChannel(ctx, email, "", "email")
+}
+
+// GenerateAndSendChannel cria um OTP de 6 dígitos, armazena no DB e envia pelo canal informado.
+// channel: "email" | "telegram" | "whatsapp"
+// phone: número E.164 — obrigatório apenas quando channel == "whatsapp"
+func (s *OTPService) GenerateAndSendChannel(ctx context.Context, email, phone, channel string) (time.Time, error) {
+	if channel == "" {
+		channel = "email"
+	}
+
 	// Check rate limit
 	count, err := s.otpRepo.CountRecentByEmail(ctx, email, time.Now().Add(-s.rateWindow))
 	if err != nil {
@@ -69,7 +84,7 @@ func (s *OTPService) GenerateAndSend(ctx context.Context, email string) (time.Ti
 		ID:        uuid.New(),
 		Email:     email,
 		CodeHash:  string(hash),
-		Channel:   "email",
+		Channel:   channel,
 		Attempts:  0,
 		ExpiresAt: time.Now().Add(time.Duration(s.expiryMinutes) * time.Minute),
 		CreatedAt: time.Now(),
@@ -79,15 +94,29 @@ func (s *OTPService) GenerateAndSend(ctx context.Context, email string) (time.Ti
 		return time.Time{}, fmt.Errorf("failed to store OTP: %w", err)
 	}
 
-	// Send via email (primary channel)
-	if err := s.emailService.SendOTP(email, code); err != nil {
-		// If email fails, try telegram as fallback
-		if telegramErr := s.telegramNotifier.SendOTP(email, code); telegramErr != nil {
-			return time.Time{}, fmt.Errorf("failed to send OTP via both email (%v) and telegram (%v)", err, telegramErr)
+	// Dispatch pelo canal solicitado
+	switch channel {
+	case "whatsapp":
+		if phone == "" {
+			return time.Time{}, fmt.Errorf("phone é obrigatório para o canal whatsapp")
 		}
-	} else {
-		// Also send via telegram if configured (dual delivery for critical auth)
-		_ = s.telegramNotifier.SendOTP(email, code)
+		if err := s.whatsappNotifier.SendOTP(phone, code); err != nil {
+			return time.Time{}, fmt.Errorf("failed to send OTP via whatsapp to %s: %w", phone, err)
+		}
+	case "telegram":
+		if err := s.telegramNotifier.SendOTP(email, code); err != nil {
+			return time.Time{}, fmt.Errorf("failed to send OTP via telegram for %s: %w", email, err)
+		}
+	default: // "email"
+		if err := s.emailService.SendOTP(email, code); err != nil {
+			// Se email falha, tenta telegram como fallback
+			if telegramErr := s.telegramNotifier.SendOTP(email, code); telegramErr != nil {
+				return time.Time{}, fmt.Errorf("failed to send OTP via both email (%v) and telegram (%v)", err, telegramErr)
+			}
+		} else {
+			// Entrega dupla via telegram para auth crítica
+			_ = s.telegramNotifier.SendOTP(email, code)
+		}
 	}
 
 	return otp.ExpiresAt, nil

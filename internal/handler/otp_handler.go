@@ -31,7 +31,12 @@ func (h *OTPHandler) SendOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	expiresAt, err := h.otpService.GenerateAndSend(r.Context(), req.Email)
+	if req.Channel == "whatsapp" && req.Phone == "" {
+		http.Error(w, "phone is required for whatsapp channel", http.StatusBadRequest)
+		return
+	}
+
+	expiresAt, err := h.otpService.GenerateAndSendChannel(r.Context(), req.Email, req.Phone, req.Channel)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

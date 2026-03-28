@@ -409,6 +409,6 @@ func TestOTPVerify_AttemptsIncrementedBeforeHashCheck(t *testing.T) {
 // ─── Real OTPService: GetExpiryMinutes ───────────────────────────────────────
 
 func TestOTPGetExpiryMinutes(t *testing.T) {
-	svc := NewOTPService(nil, nil, NewTelegramNotifier("", ""), 15, 3, 5, 5)
+	svc := NewOTPService(nil, nil, NewTelegramNotifier("", ""), &NoopWhatsAppNotifier{}, 15, 3, 5, 5)
 	assert.Equal(t, 15, svc.GetExpiryMinutes())
 }
