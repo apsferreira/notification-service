@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
       - name: notification-service
-        image: ghcr.io/apsferreira/notification-service:sha-f1aa84c
+        image: ghcr.io/apsferreira/notification-service:sha-414ce25
         ports:
         - containerPort: 3030
           name: http
@@ -56,6 +56,16 @@ spec:
             secretKeyRef:
               name: notification-service-secrets
               key: rabbitmq-url
+        - name: TELEGRAM_BOT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: notification-service-secrets
+              key: telegram-bot-token
+        - name: TELEGRAM_CHAT_ID
+          valueFrom:
+            secretKeyRef:
+              name: notification-service-secrets
+              key: telegram-chat-id
         - name: OTEL_SERVICE_NAME
           value: "notification-service"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
