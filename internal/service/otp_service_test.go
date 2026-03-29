@@ -92,7 +92,7 @@ func (l *otpLogic) GenerateAndSend(ctx context.Context, email string) (time.Time
 
 	if sendErr := l.emailSender.SendOTP(email, code); sendErr != nil {
 		// Fallback to Telegram (mirrors real OTPService behaviour)
-		if telErr := l.telegram.SendOTP(email, code); telErr != nil {
+		if telErr := l.telegram.SendOTP("", email, code); telErr != nil {
 			return time.Time{}, errors.New("failed to send OTP via both email and telegram")
 		}
 	}

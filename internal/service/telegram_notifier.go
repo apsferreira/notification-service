@@ -35,9 +35,18 @@ func (t *TelegramNotifier) IsConfigured() bool {
 	return t.botToken != "" && t.chatID != ""
 }
 
-// SendOTP sends the OTP code to the configured Telegram chat.
-func (t *TelegramNotifier) SendOTP(toEmail, code string) error {
-	if !t.IsConfigured() {
+// SendOTP sends the OTP code to the specified Telegram chat.
+// chatID: se não-vazio, usa este chat_id; caso contrário, usa o chat_id padrão configurado.
+func (t *TelegramNotifier) SendOTP(chatID, toEmail, code string) error {
+	if t.botToken == "" {
+		return nil
+	}
+
+	targetChatID := chatID
+	if targetChatID == "" {
+		targetChatID = t.chatID
+	}
+	if targetChatID == "" {
 		return nil
 	}
 
@@ -50,7 +59,7 @@ func (t *TelegramNotifier) SendOTP(toEmail, code string) error {
 	)
 
 	payload := map[string]interface{}{
-		"chat_id":    t.chatID,
+		"chat_id":    targetChatID,
 		"text":       text,
 		"parse_mode": "HTML",
 	}
@@ -71,6 +80,6 @@ func (t *TelegramNotifier) SendOTP(toEmail, code string) error {
 		return fmt.Errorf("telegram: API returned status %d", resp.StatusCode)
 	}
 
-	log.Printf("[TELEGRAM] OTP delivered to chat %s for %s", t.chatID, toEmail)
+	log.Printf("[TELEGRAM] OTP delivered to chat %s for %s", targetChatID, toEmail)
 	return nil
 }

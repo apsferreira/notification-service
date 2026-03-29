@@ -46,13 +46,14 @@ func NewOTPService(
 // GenerateAndSend creates a 6-digit OTP, stores it in DB, and sends via email/telegram.
 // Mantido para compatibilidade retroativa — delega para GenerateAndSendChannel com canal "email".
 func (s *OTPService) GenerateAndSend(ctx context.Context, email string) (time.Time, error) {
-	return s.GenerateAndSendChannel(ctx, email, "", "email")
+	return s.GenerateAndSendChannel(ctx, email, "", "email", "")
 }
 
 // GenerateAndSendChannel cria um OTP de 6 dígitos, armazena no DB e envia pelo canal informado.
 // channel: "email" | "telegram" | "whatsapp"
 // phone: número E.164 — obrigatório apenas quando channel == "whatsapp"
-func (s *OTPService) GenerateAndSendChannel(ctx context.Context, email, phone, channel string) (time.Time, error) {
+// telegramChatID: chat_id do usuário no Telegram — se vazio, usa o chat_id padrão configurado no notifier
+func (s *OTPService) GenerateAndSendChannel(ctx context.Context, email, phone, channel, telegramChatID string) (time.Time, error) {
 	if channel == "" {
 		channel = "email"
 	}
@@ -104,18 +105,18 @@ func (s *OTPService) GenerateAndSendChannel(ctx context.Context, email, phone, c
 			return time.Time{}, fmt.Errorf("failed to send OTP via whatsapp to %s: %w", phone, err)
 		}
 	case "telegram":
-		if err := s.telegramNotifier.SendOTP(email, code); err != nil {
+		if err := s.telegramNotifier.SendOTP(telegramChatID, email, code); err != nil {
 			return time.Time{}, fmt.Errorf("failed to send OTP via telegram for %s: %w", email, err)
 		}
 	default: // "email"
 		if err := s.emailService.SendOTP(email, code); err != nil {
 			// Se email falha, tenta telegram como fallback
-			if telegramErr := s.telegramNotifier.SendOTP(email, code); telegramErr != nil {
+			if telegramErr := s.telegramNotifier.SendOTP("", email, code); telegramErr != nil {
 				return time.Time{}, fmt.Errorf("failed to send OTP via both email (%v) and telegram (%v)", err, telegramErr)
 			}
 		} else {
 			// Entrega dupla via telegram para auth crítica
-			_ = s.telegramNotifier.SendOTP(email, code)
+			_ = s.telegramNotifier.SendOTP("", email, code)
 		}
 	}
 

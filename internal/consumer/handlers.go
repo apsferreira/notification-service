@@ -62,7 +62,7 @@ func (h *NotificationHandlers) HandleOTPRequested(ctx context.Context, event OTP
 	}
 	log.Printf("[consumer] otp.requested for %s (service: %s, channel: %s)", event.Email, event.ServiceName, event.Channel)
 
-	expiresAt, err := h.otpSvc.GenerateAndSendChannel(ctx, event.Email, event.Phone, event.Channel)
+	expiresAt, err := h.otpSvc.GenerateAndSendChannel(ctx, event.Email, event.Phone, event.Channel, event.TelegramChatID)
 	if err != nil {
 		return fmt.Errorf("GenerateAndSendChannel OTP for %s (channel: %s): %w", event.Email, event.Channel, err)
 	}
