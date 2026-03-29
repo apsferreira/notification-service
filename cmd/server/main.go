@@ -44,6 +44,10 @@ func main() {
 	telegramChatID := getEnv("TELEGRAM_CHAT_ID", "")
 	env := getEnv("ENV", "production")
 
+	// WhatsApp via Meta Cloud API (opcional — no-op se credenciais ausentes)
+	waPhoneNumberID := getEnv("WHATSAPP_PHONE_NUMBER_ID", "")
+	waAccessToken   := getEnv("WHATSAPP_ACCESS_TOKEN", "")
+
 	// 3. Connect to PostgreSQL
 	dbPool, err := pgxpool.New(context.Background(), databaseURL)
 	if err != nil {
@@ -69,7 +73,12 @@ func main() {
 	// Initialize OTP-related services
 	emailSvc := service.NewEmailService(resendAPIKey, fromEmail, env)
 	telegramNotifier := service.NewTelegramNotifier(telegramBotToken, telegramChatID)
-	whatsappNotifier := &service.NoopWhatsAppNotifier{}
+	whatsappNotifier := service.NewMetaWhatsAppNotifier(waPhoneNumberID, waAccessToken)
+	if whatsappNotifier.IsConfigured() {
+		log.Println("✅ WhatsApp (Meta Cloud API) configurado")
+	} else {
+		log.Println("⚠️  WhatsApp não configurado — canal whatsapp desabilitado")
+	}
 	otpSvc := service.NewOTPService(otpRepo, emailSvc, telegramNotifier, whatsappNotifier, 10, 3, 5, 30) // 10min expiry, 3 attempts, 5 requests per 30min
 
 	// 6. Initialize handlers
