@@ -66,6 +66,19 @@ spec:
             secretKeyRef:
               name: notification-service-secrets
               key: telegram-chat-id
+        # WhatsApp via Meta Cloud API (opcional — no-op se ausente)
+        - name: WHATSAPP_PHONE_NUMBER_ID
+          valueFrom:
+            secretKeyRef:
+              name: notification-service-secrets
+              key: whatsapp-phone-number-id
+              optional: true
+        - name: WHATSAPP_ACCESS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: notification-service-secrets
+              key: whatsapp-access-token
+              optional: true
         - name: OTEL_SERVICE_NAME
           value: "notification-service"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
