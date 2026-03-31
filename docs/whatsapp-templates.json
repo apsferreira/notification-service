@@ -1,0 +1,146 @@
+{
+  "waba_id": "951693297335694",
+  "phone_number_id": "10120428286663322",
+  "templates": [
+    {
+      "name": "otp_code",
+      "category": "AUTHENTICATION",
+      "language": "pt_BR",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "{{1}} é o seu código de verificação. Válido por 10 minutos. Não compartilhe com ninguém.",
+          "example": {
+            "body_text": [
+              ["123456"]
+            ]
+          }
+        },
+        {
+          "type": "FOOTER",
+          "text": "Instituto Itinerante de Tecnologia"
+        }
+      ]
+    },
+    {
+      "name": "payment_confirmed",
+      "category": "UTILITY",
+      "language": "pt_BR",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Pagamento confirmado! 🎉\n\nProduto: {{1}}\nValor: R$ {{2}}\nID: {{3}}\n\nObrigado por sua confiança!",
+          "example": {
+            "body_text": [
+              ["Nitro Pro", "49,90", "TXN-2026-000001"]
+            ]
+          }
+        },
+        {
+          "type": "FOOTER",
+          "text": "Instituto Itinerante de Tecnologia"
+        }
+      ]
+    },
+    {
+      "name": "payment_reminder",
+      "category": "UTILITY",
+      "language": "pt_BR",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Olá {{1}}, sua assinatura do {{2}} vence em {{3}}. Para manter seu acesso, garanta que o pagamento está em dia.\n\nDúvidas? Responda esta mensagem.",
+          "example": {
+            "body_text": [
+              ["João", "Nitro Pro", "05/04/2026"]
+            ]
+          }
+        },
+        {
+          "type": "FOOTER",
+          "text": "Instituto Itinerante de Tecnologia"
+        }
+      ]
+    },
+    {
+      "name": "welcome_product",
+      "category": "MARKETING",
+      "language": "pt_BR",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Bem-vindo ao {{1}}! 🚀\n\nSeu acesso está ativo. Para começar:\n👉 {{2}}\n\nPrecisa de ajuda? Responda aqui.",
+          "example": {
+            "body_text": [
+              ["Nitro", "https://nitro.institutoitinerante.com.br"]
+            ]
+          }
+        },
+        {
+          "type": "FOOTER",
+          "text": "Instituto Itinerante de Tecnologia"
+        }
+      ]
+    },
+    {
+      "name": "subscription_cancelled",
+      "category": "UTILITY",
+      "language": "pt_BR",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Sua assinatura do {{1}} foi cancelada conforme solicitado.\n\n{{2}}\n\nSentiremos sua falta! Se mudar de ideia, é só assinar novamente.",
+          "example": {
+            "body_text": [
+              ["Nitro Pro", "Reembolso proporcional de R$ 12,50 em até 5 dias úteis."]
+            ]
+          }
+        },
+        {
+          "type": "FOOTER",
+          "text": "Instituto Itinerante de Tecnologia"
+        }
+      ]
+    },
+    {
+      "name": "class_reminder",
+      "category": "UTILITY",
+      "language": "pt_BR",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Lembrete: sua aula de {{1}} é amanhã às {{2}} na {{3}}. Confirme sua presença respondendo SIM ou NÃO.",
+          "example": {
+            "body_text": [
+              ["Jiu-Jitsu", "19h00", "Academia Central"]
+            ]
+          }
+        },
+        {
+          "type": "FOOTER",
+          "text": "Instituto Itinerante de Tecnologia"
+        }
+      ]
+    },
+    {
+      "name": "admin_alert",
+      "category": "UTILITY",
+      "language": "pt_BR",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "[IIT Admin] {{1}}\nServiço: {{2}}\nDetalhes: {{3}}",
+          "example": {
+            "body_text": [
+              ["ERRO CRÍTICO", "notification-service", "Falha ao conectar ao Redis: connection refused"]
+            ]
+          }
+        },
+        {
+          "type": "FOOTER",
+          "text": "IIT — Uso interno"
+        }
+      ]
+    }
+  ]
+}
