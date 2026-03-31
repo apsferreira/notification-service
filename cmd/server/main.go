@@ -32,6 +32,11 @@ func main() {
 	if databaseURL == "" {
 		log.Fatal("DATABASE_URL environment variable is required")
 	}
+	serviceToken := getEnv("SERVICE_TOKEN", "")
+	if serviceToken == "" {
+		log.Fatal("SERVICE_TOKEN environment variable is required")
+	}
+
 	resendAPIKey := getEnv("RESEND_API_KEY", "")
 	if resendAPIKey == "" {
 		log.Println("⚠️  RESEND_API_KEY not set — email sending will fail")
@@ -108,48 +113,33 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	// CORS middleware
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token")
-
-			if r.Method == "OPTIONS" {
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		})
-	})
-
-	// Register telemetry endpoints
+	// Register telemetry endpoints (públicos — /metrics)
 	telemetry.RegisterMetrics(r)
 
-	// Health check endpoint
+	// Health check endpoint (público)
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status": "ok", "service": "notification-service"}`))
 	})
 
-	// API routes
-	r.Route("/notifications", func(r chi.Router) {
-		r.Post("/send", notificationHandler.SendNotification)
-		r.Get("/", notificationHandler.ListNotifications)
-		r.Get("/{id}", notificationHandler.GetNotification)
-	})
+	// Rotas de leitura (públicas)
+	r.Get("/notifications", notificationHandler.ListNotifications)
+	r.Get("/notifications/{id}", notificationHandler.GetNotification)
+	r.Get("/templates", templateHandler.ListTemplates)
+	r.Get("/templates/{id}", templateHandler.GetTemplate)
 
-	r.Route("/templates", func(r chi.Router) {
-		r.Post("/", templateHandler.CreateTemplate)
-		r.Get("/", templateHandler.ListTemplates)
-		r.Get("/{id}", templateHandler.GetTemplate)
-		r.Put("/{id}", templateHandler.UpdateTemplate)
-	})
+	// Rotas de escrita protegidas por service token
+	r.Group(func(r chi.Router) {
+		r.Use(custommw.ServiceTokenMiddleware)
 
-	r.Route("/otp", func(r chi.Router) {
-		r.Post("/send", otpHandler.SendOTP)
-		r.Post("/verify", otpHandler.VerifyOTP)
+		r.Post("/notifications/send", notificationHandler.SendNotification)
+
+		r.Post("/templates", templateHandler.CreateTemplate)
+		r.Put("/templates/{id}", templateHandler.UpdateTemplate)
+
+		r.Post("/otp/send", otpHandler.SendOTP)
+		r.Post("/otp/verify", otpHandler.VerifyOTP)
 	})
 
 	// 8. Start server
