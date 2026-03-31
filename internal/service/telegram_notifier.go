@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -19,14 +20,26 @@ type TelegramNotifier struct {
 }
 
 func NewTelegramNotifier(botToken, chatID string) *TelegramNotifier {
-	// Skip TLS verification — VPN intercepts HTTPS with self-signed cert
-	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+	var transport http.RoundTripper
+
+	// InsecureSkipVerify permitido APENAS em desenvolvimento explícito (SEC-008).
+	// Em produção o client padrão do Go valida TLS normalmente.
+	if os.Getenv("ENV") == "development" && os.Getenv("TLS_SKIP_VERIFY") == "true" {
+		transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
+		}
+		log.Println("[WARN] TLS_SKIP_VERIFY ativo — usar apenas em desenvolvimento")
 	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	if transport != nil {
+		client.Transport = transport
+	}
+
 	return &TelegramNotifier{
 		botToken: botToken,
 		chatID:   chatID,
-		client:   &http.Client{Timeout: 10 * time.Second, Transport: transport},
+		client:   client,
 	}
 }
 
