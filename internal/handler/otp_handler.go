@@ -36,7 +36,12 @@ func (h *OTPHandler) SendOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	expiresAt, err := h.otpService.GenerateAndSendChannel(r.Context(), req.Email, req.Phone, req.Channel, "")
+	if req.Channel == "telegram" && req.TelegramChatID == "" {
+		http.Error(w, "telegram_chat_id is required for telegram channel", http.StatusBadRequest)
+		return
+	}
+
+	expiresAt, err := h.otpService.GenerateAndSendChannel(r.Context(), req.Email, req.Phone, req.Channel, req.TelegramChatID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

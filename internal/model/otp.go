@@ -19,9 +19,10 @@ type OTPCode struct {
 
 // SendOTPRequest represents the request to send an OTP
 type SendOTPRequest struct {
-	Email   string `json:"email" validate:"required,email"`
-	Phone   string `json:"phone,omitempty" validate:"omitempty,max=20"`    // E.164, obrigatório quando Channel == "whatsapp"
-	Channel string `json:"channel,omitempty" validate:"omitempty,max=20"` // "email" | "telegram" | "whatsapp" (default: "email")
+	Email          string `json:"email" validate:"required,email"`
+	Phone          string `json:"phone,omitempty" validate:"omitempty,max=20"`          // E.164, obrigatório quando Channel == "whatsapp"
+	Channel        string `json:"channel,omitempty" validate:"omitempty,max=20"`        // "email" | "telegram" | "whatsapp" (default: "email")
+	TelegramChatID string `json:"telegram_chat_id,omitempty" validate:"omitempty,max=64"` // chat_id do usuário — obrigatório quando Channel == "telegram"
 }
 
 // VerifyOTPRequest represents the request to verify an OTP
