@@ -25,6 +25,15 @@ type SendOTPRequest struct {
 	TelegramChatID string `json:"telegram_chat_id,omitempty" validate:"omitempty,max=64"` // chat_id do usuário — obrigatório quando Channel == "telegram"
 }
 
+// DeliverOTPRequest represents a request to deliver an OTP code already generated
+// by the auth-service. The notification-service only sends the message, no generation.
+type DeliverOTPRequest struct {
+	Email          string `json:"email" validate:"required,email"`
+	Code           string `json:"code" validate:"required"`
+	Channel        string `json:"channel,omitempty"`
+	TelegramChatID string `json:"telegram_chat_id,omitempty"`
+}
+
 // VerifyOTPRequest represents the request to verify an OTP
 type VerifyOTPRequest struct {
 	Email string `json:"email" validate:"required,email"`

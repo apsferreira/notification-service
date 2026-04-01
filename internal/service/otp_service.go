@@ -167,3 +167,30 @@ func (s *OTPService) Verify(ctx context.Context, email, code string) error {
 func (s *OTPService) GetExpiryMinutes() int {
 	return s.expiryMinutes
 }
+
+// DeliverOnly envia um código OTP já gerado pelo auth-service, sem gerar nem armazenar.
+// Responsabilidade: apenas entrega da mensagem pelo canal correto.
+func (s *OTPService) DeliverOnly(ctx context.Context, email, code, channel, telegramChatID string) error {
+	if channel == "" {
+		channel = "email"
+	}
+
+	switch channel {
+	case "telegram":
+		if s.telegramNotifier == nil {
+			return fmt.Errorf("telegram not configured")
+		}
+		chatID := telegramChatID
+		if chatID == "" {
+			return fmt.Errorf("telegram_chat_id is required")
+		}
+		return s.telegramNotifier.SendOTP(chatID, email, code)
+	case "whatsapp":
+		if s.whatsappNotifier == nil {
+			return fmt.Errorf("whatsapp not configured")
+		}
+		return s.whatsappNotifier.SendOTP(email, code)
+	default:
+		return s.emailService.SendOTP(email, code)
+	}
+}

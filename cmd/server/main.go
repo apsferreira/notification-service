@@ -140,6 +140,7 @@ func main() {
 
 		r.Post("/otp/send", otpHandler.SendOTP)
 		r.Post("/otp/verify", otpHandler.VerifyOTP)
+		r.Post("/otp/deliver", otpHandler.DeliverOTP)
 	})
 
 	// 8. Start server

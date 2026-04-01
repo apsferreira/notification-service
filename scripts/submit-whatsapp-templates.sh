@@ -67,8 +67,8 @@ submit_template() {
 
   local body
   local status
-  body=$(echo "$response" | head -n -1)
   status=$(echo "$response" | tail -n 1)
+  body=$(echo "$response" | sed '$d')
 
   if [[ "$status" == "200" ]] || [[ "$status" == "201" ]]; then
     local template_id

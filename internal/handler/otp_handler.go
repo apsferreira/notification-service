@@ -57,6 +57,35 @@ func (h *OTPHandler) SendOTP(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// DeliverOTP handles POST /otp/deliver — apenas envia o código, sem gerar/armazenar.
+// Usado pelo auth-service que agora é dono da lógica de OTP.
+func (h *OTPHandler) DeliverOTP(w http.ResponseWriter, r *http.Request) {
+	var req model.DeliverOTPRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Email == "" || req.Code == "" {
+		http.Error(w, "email and code are required", http.StatusBadRequest)
+		return
+	}
+
+	channel := req.Channel
+	if channel == "" {
+		channel = "email"
+	}
+
+	if err := h.otpService.DeliverOnly(r.Context(), req.Email, req.Code, channel, req.TelegramChatID); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "OTP delivered"})
+}
+
 // VerifyOTP handles POST /otp/verify
 func (h *OTPHandler) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 	var req model.VerifyOTPRequest
